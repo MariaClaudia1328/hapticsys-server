@@ -4,6 +4,7 @@ from sqlalchemy.dialects.postgresql import JSON
 from time import sleep
 import json
 import serial
+import socket
 
 RST_INPUT = "000000000000"
 FORWARD_MASK = "000100001000"
@@ -11,17 +12,20 @@ BACKWARD_MASK = "000001100000"
 LEFT_MASK = "001000000000"
 RIGHT_MASK = "000000000100"
 
+USE_WIFI = True
+
 mode = 'a'
 # mode = 'r'
 
-serialPort = ''
-if mode == 'a':
-    serialPort = serial.Serial(
-        port="/dev/ttyUSB0",
-        baudrate=115200,
-        bytesize=8,
-        timeout=2,
-        stopbits=serial.STOPBITS_ONE)
+if not USE_WIFI:
+    serialPort = ''
+    if mode == 'a':
+        serialPort = serial.Serial(
+            port="/dev/ttyUSB0",
+            baudrate=115200,
+            bytesize=8,
+            timeout=2,
+            stopbits=serial.STOPBITS_ONE)
 
 db = SQLAlchemy()
 app = Flask(__name__)
@@ -43,6 +47,25 @@ class Sequence(db.Model):
     def as_dict(self):
         return {c.title: getattr(self, c.title) for c in self.__table__.columns}
 
+
+def create_socket():
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    
+    server_ip = "192.168.0.22"
+    server_port = 23
+
+    client.connect((server_ip, server_port))
+
+    return client
+
+def run_client(message, client):
+    try:
+        client.send(message.encode("utf-8"))
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        client.close()
+        print("Connection to server closed")
 
 def get_mask(direction):
     if (direction == "F"):
@@ -91,9 +114,14 @@ def lib_input():
     sequence = Sequence.query.get(int(id))
     data = {'id': sequence.id, 'title': sequence.title,
             'period': sequence.period, 'input': sequence.input}
+    client = create_socket()
     if mode == 'a':
         for state in data["input"]:
-            serialPort.write(bytes(state, 'utf-8'))
+            if USE_WIFI:
+                run_client(state, client)
+            else:
+                serialPort.write(bytes(state, 'utf-8'))
+
             print(state)
             sleep(float(data["period"]))
     return json.dumps({'sucess': True, 'message': f'Sequencia {data["title"]} executada'})
@@ -114,9 +142,15 @@ def save_input():
 def custom_input():
     input = request.json['input']
     period = float(request.json['period'])
+    client = create_socket()
     if mode == 'a':
         for sequence in input:
-            serialPort.write(bytes(sequence, 'utf-8'))
+            if USE_WIFI:
+                run_client(sequence, client)
+            else:
+                serialPort.write(bytes(sequence, 'utf-8'))
+
+            print(sequence)
             sleep(period)
     return json.dumps({'success': True, "message": f"Input recebido {input}, com periodo {period}"})
 
@@ -128,9 +162,15 @@ def monster_input():
     level = get_level(time)
     mask = get_mask(direction)
     sequence = [create_monster_input(mask, level), RST_INPUT]
+    client = create_socket()
     if mode == 'a':
         for state in sequence:
-            serialPort.write(bytes(state, 'utf-8'))
+            if USE_WIFI:
+                run_client(state, client)
+            else:
+                serialPort.write(bytes(state, 'utf-8'))
+
+            print(state)
             sleep(time/10)
     return json.dumps({'success': True, "message": f"Sequencia monstro executada"})
 
