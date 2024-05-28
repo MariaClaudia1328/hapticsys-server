@@ -7,23 +7,22 @@ A server to receive and send hapticsys signals
 
 ## Requirements
 
-- Python >= 3.0.0
-- Flask [latest]
+- Python 3.11
+- Flask
 - Linux 
+- Python Virtual Env (venv)
+- Pip
 
 ## Execution (via terminal)
 
 1. Set Virtual Enviroment
 
 ```bash
-sudo pacman -S python-virualenv
-sudo pacman -S python-pip
 mkdir env
 cd env
-sudo python -m venv env
-source flaskenv/bin/activate
+sudo python3.11 -m venv env
+source env/bin/activate
 sudo pip install -r requirements.txt
-
 ```
 
 2. Run server
@@ -35,7 +34,7 @@ flask run
 3. Stop server and deactivate the virtual enviroment
 
 ```bash
-# Usar [crtl+c]
+# Stop flask process with [crtl+c]
 deactivate
 ```
 
